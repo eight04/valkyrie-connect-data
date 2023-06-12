@@ -1,0 +1,49 @@
+{
+  "name": "valkyrie-connect-data",
+  "version": "0.0.0",
+  "scripts": {
+    "test": "eslint **/*.mjs **/*.svelte",
+    "dev": "run-p start-dev build-dev",
+    "build": "shx rm -rf docs && rollup -c",
+    "build-dev": "rollup -cw",
+    "build-db": "node tools/build-characters.mjs",
+    "start": "sirv docs",
+    "start-dev": "sirv docs --dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eight04/valkyrie-connect-data.git"
+  },
+  "keywords": [],
+  "author": "eight04",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/eight04/valkyrie-connect-data/issues"
+  },
+  "homepage": "https://github.com/eight04/valkyrie-connect-data#readme",
+  "devDependencies": {
+    "@babel/core": "^7.22.5",
+    "@babel/eslint-parser": "^7.22.5",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-yaml": "^4.1.0",
+    "@surma/rollup-plugin-comlink": "https://github.com/eight04/rollup-plugin-comlink/tarball/dev-autowrap",
+    "cheerio": "^1.0.0-rc.12",
+    "eslint": "^8.42.0",
+    "eslint-plugin-svelte3": "^4.0.0",
+    "livereload": "^0.9.3",
+    "make-fetch-happen": "^11.1.1",
+    "npm-run-all": "^4.1.5",
+    "rollup": "^3.25.1",
+    "rollup-plugin-copy-glob": "^0.3.2",
+    "rollup-plugin-css-only": "^4.3.0",
+    "rollup-plugin-iife": "^0.7.0",
+    "rollup-plugin-livereload": "^2.0.5",
+    "rollup-plugin-re": "^1.0.7",
+    "rollup-plugin-svelte": "^7.1.5",
+    "rollup-plugin-write-output": "^0.2.0",
+    "shx": "^0.3.4",
+    "sirv-cli": "^2.0.2",
+    "svelte": "^3.59.1",
+    "yaml": "^2.3.1"
+  }
+}
