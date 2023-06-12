@@ -87,9 +87,13 @@ async function parseCharacter(url) {
       result.element = n ? ELEMENTS[n - 1] : "none";
       result.skill = $(el).find("dl").slice(1).map((i, el) => parseSkill(el)).toArray();
     } else if (key == "極限爆發") {
-      result.limitBreak = parseSkill($(el).first("dl").get());
+      result.limitBurst = parseSkill($(el).first("dl").get());
     } else if (key === "被動技能") {
       result.passives = $(el).find("dl").map((i, el) => parseSkill(el)).toArray();
+    } else if (key === "魂之怒") {
+      result.soulBurst = parseSkill($(el).first("dl").get());
+    } else {
+      throw new Error(`Unknown skill detail: ${key}`);
     }
   });
 
