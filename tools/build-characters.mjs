@@ -141,7 +141,9 @@ async function parseCharacter(url) {
     const key = $(el).text().trim();
     if (key === "類型") {
       const typeImageUrl = $(el).next().find("img").prop("src");
-      result.distance = Number(typeImageUrl.match(/type_(\d+)/)[1]);
+      const n = Number(typeImageUrl.match(/type_(\d+)/)[1])
+      result.distance = n === 1 ? "melee" :
+        n === 2 ? "magic" : "ranged";
     } else {
       result[translate(key)] = $(el).next().text().trim();
     }

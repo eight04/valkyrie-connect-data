@@ -1,48 +1,49 @@
 <script>
-import DressChooser from "./DressChooser.svelte";
-import SubdressSimulator from "./SubdressSimulator.svelte";
-import DPSSimulator from "./DPSSimulator.svelte";
-
-import {language} from "./i18n.mjs";
-
-let subSim;
-let subSimEl;
-
-function openSub(e) {
-  subSim.setCustomMod(e.detail);
-  subSimEl.open = true;
-  subSimEl.scrollIntoView({behavior: "smooth"});
+let filter = {
+  distance: [],
+  race: [],
+  element: [],
+  searchActive: "",
+  searchPassive: ""
 }
 </script>
 
-<h1>MGCM Skill Data</h1>
+<svelte:head>
+  <title>Valkyrie Connect Data</title>
+</svelte:head>
 
-<label>
-  Language
-  <select bind:value={$language}>
-    <option value="en">EN</option>
-    <option value="jp">JP</option>
-    <option value="tw">TW</option>
-  </select>
-</label>
+<h1>神域召喚角色查詢</h1>
 
-<details>
-  <summary>Wardrobe</summary>
-  <DressChooser />
-</details>
+<form>
+  <span class="form-label">距離</span>
+  <div class="form-group">
+    <label>
+      <input type="checkbox" bind:group={distance} value="melee">
+      近
+    </label>
+    <label>
+      <input type="checkbox" bind:group={distance} value="magic">
+      中
+    </label>
+    <label>
+      <input type="checkbox" bind:group={distance} value="ranged">
+      遠
+    </label>
+  </div>
 
-<details bind:this={subSimEl}>
-  <summary>Subdress Simulator</summary>
-  <SubdressSimulator bind:this={subSim} />
-</details>
+  <span class="form-label">種族</span>
 
-<details>
-  <summary>Damage Simulator</summary>
-  <DPSSimulator on:openSub={openSub} />
-</details>
+  <span class="form-label">屬性</span>
+
+  <label class="form-label">篩選主動技能效果</label>
+
+  <label class="form-label">篩選被動技能效果</label>
+
+  <button type="submit">搜尋</button>
+</form>
 
 <footer>
-  <a href="https://github.com/eight04/mgcm-skill-data">eight04/mgcm-skill-data</a>
+  <a href="https://github.com/eight04/valkyrie-connect-data">eight04/valkyrie-connect-data</a>
 </footer>
 
 <style>
