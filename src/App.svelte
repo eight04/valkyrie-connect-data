@@ -36,7 +36,7 @@ let filter = {
   searchSkill: "",
 };
 
-let searchResult = [];
+let searchResult = null;
 
 function start() {
   const result = [];
@@ -54,9 +54,12 @@ function start() {
 
 function matchCharacter(char, filter) {
   if (filter.distance.length && !filter.distance.includes(char.distance)) return false;
+
   if (filter.race.length && !filter.race.includes(char.race)) return false;
+
   const element = char.element || char.awakenSkillElement || char.skillElement;
-  if (filter.element.length && !filter.race.includes(char.race)) return false;
+  if (filter.element.length && !filter.element.includes(element)) return false;
+
   if (!filter.searchSkill) return [];
 
   const result = [];
@@ -150,10 +153,32 @@ function searchEffect(list, search, skillName) {
   <label class="form-label" for="searchSkill">技能效果</label>
   <input type="text" bind:value={filter.searchSkill} id="searchSkill">
 
-  <button type="submit">搜尋</button>
+  <div class="actions">
+    <button type="submit">搜尋</button>
+  </div>
 </form>
 
-<pre>{JSON.stringify(searchResult.map(r => r.effect), null, 2)}</pre>
+{#if searchResult && searchResult.length}
+  <div class="search-result">
+    {#each searchResult as r}
+      <div class="char" style="grid-row-end: span {r.effect.length}">
+        <a href={r.char.url} target="_blank" title={r.char.name}>
+          <img src={r.char.icons[r.char.icons.length - 1]} alt={r.char.name}>
+        </a>
+      </div>
+      {#each r.effect as e}
+        <div class="effect-item">
+          <div class="effect-target">{e.target}</div>
+          <div class="effect-effect">{e.effect}</div>
+        </div>
+      {/each}
+    {/each}
+  </div>
+{:else if searchResult}
+  <div class="search-result">
+    <div class="no-result">沒有符合條件的角色</div>
+  </div>
+{/if}
 
 <footer>
   <a href="https://github.com/eight04/valkyrie-connect-data">eight04/valkyrie-connect-data</a>
@@ -163,24 +188,42 @@ function searchEffect(list, search, skillName) {
 :global(body) {
   font-size: 16px;
   font-family: sans-serif;
-  margin: 2em;
+  margin: 0 auto;
+  max-width: 600px;
 }
 :global(input), :global(button), :global(select) {
   font-size: .95em;
   font-family: inherit;
   padding: .3em .6em;
 }
-details {
-  border: 2px solid silver;
-  padding: .6em;
-  margin: .2em 0;
+form {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  grid-gap: .5em;
+  align-items: center;
 }
-summary {
-  padding: .6em;
-  cursor: pointer;
+.actions {
+  grid-column: 1 / -1;
+}
+.search-result {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  margin: .5em 0;
+}
+.search-result a {
+  display: block;
+}
+.effect-target {
+  margin: .5em;
+  font-weight: bold;
+}
+.effect-effect {
+  margin: .5em;
+  white-space: pre-wrap;
 }
 footer {
-  text-align: right;
+  text-align: center;
   margin: 1.2em;
 }
 </style>
