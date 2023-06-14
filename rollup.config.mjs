@@ -9,52 +9,53 @@ import iife from "rollup-plugin-iife";
 import output from "rollup-plugin-write-output";
 import copy from 'rollup-plugin-copy-glob';
 import re from "rollup-plugin-re";
+import terser from '@rollup/plugin-terser';
 
 const production = !process.env.ROLLUP_WATCH;
 
 export default {
-	input: 'src/index.mjs',
-	output: {
-		sourcemap: true,
-		format: 'esm',
-		name: 'app',
-		dir: 'docs'
-	},
-	plugins: [
+  input: 'src/index.mjs',
+  output: {
+    sourcemap: true,
+    format: 'esm',
+    name: 'app',
+    dir: 'docs'
+  },
+  plugins: [
     yaml(),
-		svelte({
+    svelte({
       compilerOptions: {
         dev: !production
       }
-		}),
+    }),
 
-		// If you have external dependencies installed from
-		// npm, you'll most likely need these plugins. In
-		// some cases you'll need additional configuration —
-		// consult the documentation for details:
-		// https://github.com/rollup/rollup-plugin-commonjs
-		resolve({ browser: true }),
-    
+    // If you have external dependencies installed from
+    // npm, you'll most likely need these plugins. In
+    // some cases you'll need additional configuration —
+    // consult the documentation for details:
+    // https://github.com/rollup/rollup-plugin-commonjs
+    resolve({ browser: true }),
+
     css({
       output: "bundle.css"
     }),
-    
+
     omt(),
-    
+
     comlink({
       autoWrap: [/\.worker\.mjs/],
       useModuleWorker: true
     }),
-    
+
     re({
       patterns: [{
         test: /{type:\s*"module"}/,
         replace: "{}"
       }]
     }),
-    
+
     iife(),
-    
+
     output([
       {
         test: /index\.js$/,
@@ -72,24 +73,22 @@ export default {
       }
     ]),
 
-		// Watch the `public` directory and refresh the
-		// browser on changes when not in production
-		!production && livereload('docs'),
+    // Watch the `public` directory and refresh the
+    // browser on changes when not in production
+    !production && livereload('docs'),
 
-		// If we're building for production (npm run build
-		// instead of npm run dev), minify
-	// 	production && terser({
-    //   module: false
-    // }),
-    
+    production && terser({
+      module: false
+    }),
+
     copy([
       {
         files: "src/*.html",
         dest: "docs"
       }
     ]),
-	],
-	watch: {
-		clearScreen: false
-	}
+  ],
+  watch: {
+    clearScreen: false
+  }
 };

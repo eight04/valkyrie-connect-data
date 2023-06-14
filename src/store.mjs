@@ -1,6 +1,6 @@
 /* eslint-env browser */
-
 import {writable} from "svelte/store";
+import {name as packageName} from "../package.json";
 
 const cache = new Map;
 
@@ -8,11 +8,11 @@ export function getStore(name, default_) {
   if (cache.has(name)) return cache.get(name);
   
   const store = writable(
-    parseJSON(localStorage.getItem(`mgcm-skill-data/${name}`)) ??
+    parseJSON(localStorage.getItem(`${packageName}/${name}`)) ??
     default_
   );
   store.subscribe(value => 
-    localStorage.setItem(`mgcm-skill-data/${name}`, JSON.stringify(value))
+    localStorage.setItem(`${packageName}/${name}`, JSON.stringify(value))
   );
   
   cache.set(name, store);

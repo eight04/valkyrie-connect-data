@@ -25,6 +25,7 @@
     "@babel/core": "^7.22.5",
     "@babel/eslint-parser": "^7.22.5",
     "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-yaml": "^4.1.0",
     "@surma/rollup-plugin-comlink": "https://github.com/eight04/rollup-plugin-comlink/tarball/dev-autowrap",
     "eslint": "^8.42.0",
