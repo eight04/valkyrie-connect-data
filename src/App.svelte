@@ -1,4 +1,5 @@
 <script>
+/* eslint-env browser */
 import allCharacters from '../characters.yml';
 
 window.allCharacters = allCharacters;

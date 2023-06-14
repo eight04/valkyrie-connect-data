@@ -167,14 +167,6 @@ async function extractCharacter(url) {
   }
 
   return result;
-
-  function parseResist(row, labels) {
-    const result = {};
-    for (let i = 0; i < row.length; i++) {
-      result[translate(labels[i])] = row[i];
-    }
-    return result;
-  }
 }
 
 function translate(key) {
