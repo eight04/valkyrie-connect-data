@@ -1,7 +1,8 @@
 import * as fs from "fs/promises";
 import rawFetch from "make-fetch-happen";
-import * as cheerio from "cheerio";
+import jsdom from "jsdom";
 import YAML from "yaml";
+import {htmlToText} from "html-to-text";
 
 const PAGE_LIMIT = 99999;
 const OUTPUT = "characters.yml";
@@ -26,6 +27,17 @@ const TRANSLATE_TABLE = {
   木: "earth",
   光: "light",
   暗: "dark",
+  神族: "aesir",
+  人類: "human",
+  精靈: "elf",
+  矮人: "dwarf",
+  亞人: "therian",
+  巨人: "jotun",
+  神獸: "beast",
+  幻靈: "celestial",
+  "♂": "male",
+  "♀": "female",
+  "???": "unknown",
 };
 
 const ELEMENTS = [
@@ -42,90 +54,117 @@ const urls = [
 
 const characters = [];
 for (const url of urls) {
-  const result = await parseCharacterMenu(url);
+  const result = await extractCharacterMenu(url);
   characters.push(...result);
 }
 // await fs.writeFile("db.json", JSON.stringify(characters, null, 2));
 await fs.writeFile(OUTPUT, YAML.stringify(characters, null, 2));
 
-async function parseCharacterMenu(url) {
-  console.log(String(url));
+async function extractCharacterMenu(url) {
+  console.log((url));
   const r = await fetch(url);
   const text = await r.text();
-  const $ = cheerio.load(text);
+  const {document} = new jsdom.JSDOM(text, {url}).window;
   const result = [];
 
-  for (const link of $("a[href*=character_detail]")) {
-    result.push(await parseCharacter(new URL($(link).prop("href"), url)));
+  for (const link of document.querySelectorAll("a[href*=character_detail]")) {
+    result.push(await extractCharacter(link.href));
     if (result.length >= PAGE_LIMIT) break;
   }
 
   return result;
 }
 
-async function parseCharacter(url) {
-  console.log(String(url));
+async function extractCharacter(url) {
+  console.log(url);
   const r = await fetch(url);
   const html = await r.text();
-  const $ = cheerio.load(html);
+  const {document} = new jsdom.JSDOM(html, {url}).window;
   const result = {};
 
-  result.url = String(url);
-  result.name = $(".name__text").text();
-  result.icons = $("img.detail__img")
-    .map((i, el) => $(el).prop("src"))
-    .toArray()
-    .map(u => String(new URL(u, url)));
+  result.url = (url);
+  result.name = document.querySelector(".name__text").textContent;
+  result.icons = [...document.querySelectorAll("img.detail__img")].map(i => i.src);
 
-  $(".detail__data dt").each((i, el) => parseData(el));
-
-  $("#contents > li:first-child > .detail__skill").each((i, el) => {
-    const key = $(el).find(".title_bar--text").text().trim();
-    if (key === "主動技能") {
-      const src = $(el).find(".attribute-img").prop("src")
-      const n = src ? Number(src.match(/attribute_(\d+)/)[1]) : 0;
-      result.element = n ? ELEMENTS[n - 1] : "none";
-      result.skill = $(el).find("dl").slice(1).map((i, el) => parseSkill(el)).toArray();
-    } else if (key == "極限爆發") {
-      result.limitBurst = parseSkill($(el).first("dl").get());
-    } else if (key === "被動技能") {
-      result.passives = $(el).find("dl").map((i, el) => parseSkill(el)).toArray();
-    } else if (key === "魂之怒") {
-      result.soulBurst = parseSkill($(el).first("dl").get());
+  for (const dt of document.querySelectorAll(".detail__data dt")) {
+    const key = dt.textContent;
+    if (key === "類型") {
+      const typeImageUrl = dt.nextElementSibling.querySelector("img").src;
+      const n = Number(typeImageUrl.match(/type_(\d+)/)[1])
+      result.distance = n === 1 ? "melee" :
+        n === 2 ? "magic" : "ranged";
+    } else if (key === "初期星等") {
+      result.rarity = Number(dt.nextElementSibling.textContent.match(/(\d+)☆/)[1]);
+    } else if (key === "種族" || key === "性別") {
+      result[translate(key)] = translate(dt.nextElementSibling.textContent);
     } else {
-      throw new Error(`Unknown skill detail: ${key}`);
+      result[translate(key)] = (dt.nextElementSibling.textContent);
     }
-  });
+  }
+
+  for (const el of document.querySelectorAll(".detail__skill")) {
+    const title = el.querySelector(".title_bar--text").textContent;
+    let match;
+    if (title === "主動技能") {
+      const {element, skill} = extractDetailSkill(el);
+      if (!result.skill) {
+        result.skillElement = element;
+        result.skill = skill;
+      } else {
+        result.awakenSkillElement = element;
+        result.awakenSkill = skill;
+      }
+    } else if (title == "極限爆發") {
+      if (!result.limitBurst) {
+        result.limitBurst = extractDetailSkill(el).skill[0];
+      } else {
+        result.awakenLimitBurst = extractDetailSkill(el).skill[0];
+      }
+    } else if (title === "被動技能") {
+      result.passives = extractDetailSkill(el).skill;
+    } else if (title === "魂之怒") {
+      result.soulBurst = extractDetailSkill(el).skill[0];
+    } else if ((match = title.match(/覺醒 等級(\d+)/))) {
+      result.awakenPassives = result.awakenPassives || [];
+      const {skill: [skill]} = extractDetailSkill(el);
+      skill.awakenLevel = Number(match[1]);
+      result.awakenPassives.push(skill);
+    } else {
+      throw new Error(`Unknown skill title: ${title}`);
+    }
+  }
 
   // status
-  const statusCols = $(".detail__status .detail__status--block > dl");
-  const keys = statusCols.eq(0).children().map((i, el) => $(el).text().trim()).toArray().map((key, i) => i > 0 ? translate(key) : key);
-  result.status = statusCols.slice(1).map((i, el) => parseStatus(el, keys)).toArray();
+  const statusCols = [...document.querySelectorAll(".detail__status .detail__status--block > dl")];
+  const keys = [...statusCols[0].children].slice(1).map((el) => translate(el.textContent));
+  result.status = statusCols.slice(1).map((el) => {
+    const status = {};
+    const type = el.children[0].textContent;
+    let match;
+    if (type === "初期") {
+      status.type = "initial";
+    } else if ((match = type.match(/最大(?:※(\d+))?/))) {
+      status.type = `max${match[1] ? `-${match[1]}` : ""}`;
+    } else {
+      throw new Error(`Unknown status type: ${type}`);
+    }
+    const values = [...el.children].slice(1).map((el) => Number(el.textContent.replace(/,/g, "")));
+    return Object.assign(status, ...keys.map((key, i) => ({[key]: values[i]})));
+  });
   
   // element resist
-  const labels = [...html.matchAll(/labels: (\[[^\]]*\])/g)].map(group => JSON.parse(group[1]));
+  const labels = [...html.matchAll(/labels: (\[[^\]]*\])/g)].map(group => JSON.parse(group[1]).map(translate));
   const data = [...html.matchAll(/data: (\[[^\]]*\])/g)].map(group => {
     if (/,\s*,/.test(group[1])) {
-      return [0, 0, 0, 0, 0];
+      return null;
     }
     return JSON.parse(group[1])
   });
   // there might be two resist data if awaken
-  result.resists = data.map((row, i) => parseResist(row, labels[i]));
-
-  // awaken passives
-  result.awakenPassives = $("#contents > li:nth-child(2) .slider").children().map((i, el) => {
-    const skill = {};
-    const key = $(el).find(".title_bar--text").text().trim();
-    let match;
-    if ((match = key.match(/覺醒 等級(\d+)/))) {
-      skill.awakenLevel = Number(match[1]);
-    } else {
-      throw new Error(`Unknown awaken passive title: ${key}`);
-    }
-    Object.assign(skill, parseSkill($(el).find("dl").get(0)));
-    return skill;
-  }).toArray();
+  result.resistance = (zip(labels[0], data[0]));
+  if (data[1]) {
+    result.awakenResistance = zip(labels[1], data[1]);
+  }
 
   return result;
 
@@ -136,67 +175,6 @@ async function parseCharacter(url) {
     }
     return result;
   }
-
-  function parseData(el) {
-    const key = $(el).text().trim();
-    if (key === "類型") {
-      const typeImageUrl = $(el).next().find("img").prop("src");
-      const n = Number(typeImageUrl.match(/type_(\d+)/)[1])
-      result.distance = n === 1 ? "melee" :
-        n === 2 ? "magic" : "ranged";
-    } else {
-      result[translate(key)] = $(el).next().text().trim();
-    }
-  }
-
-  function parseStatus(el, keys) {
-    const status = {};
-    const type = $(el).children().eq(0).text().trim();
-    let match;
-    if (type === "初期") {
-      status.type = "initial";
-    } else if ((match = type.match(/最大(?:※(\d+))?/))) {
-      status.type = `max${match[1] ? `-${match[1]}` : ""}`;
-    } else {
-      throw new Error(`Unknown status type: ${type}`);
-    }
-    $(el).children().slice(1).each((i, el) => {
-      const key = keys[i + 1];
-      const value = $(el).text().trim();
-      status[key] = Number(value.replace(/,/g, ""));
-    });
-    return status;
-  }
-
-  function parseSkill(dl) {
-    const skill = {};
-    $(dl).find("dt").each((i, el) => {
-      const key = $(el).text().trim();
-      let match;
-      if (key === "名稱") {
-        skill.name = $(el).next().text().trim();
-      } else if (key === "效果") {
-        skill.effect = cleanWhitespace($(el).next().text().trim())
-      } else if ((match = key.match(/技能等級(\d+)/))){
-        skill.levels = skill.levels || [];
-        skill.levels[match[1] - 1] = cleanWhitespace($(el).next().text().trim())
-      } else if (key === "技能等級") {
-        skill.level = Number($(el).next().text().trim());
-      } else if (key === "必要素材") {
-        skill.materials = cleanWhitespace($(el).next().text().trim())
-      } else {
-        throw new Error(`Unknown skill detail: ${key}`);
-      }
-    });
-    return skill;
-  }
-}
-
-function cleanWhitespace(text) {
-  return text.replace(/\s+/g, m => {
-    if (m.includes("\n")) return "\n";
-    return " ";
-  })
 }
 
 function translate(key) {
@@ -204,4 +182,58 @@ function translate(key) {
     return TRANSLATE_TABLE[key];
   }
   throw new Error(`Unknown translate: ${key}`);
+}
+
+function innerText(el) {
+  return htmlToText(el.innerHTML, {
+    selectors: [ { selector: 'img', format: 'skip' } ]
+  });
+}
+
+function extractSkillEffect(el) {
+  const result = [];
+  for (const child of el.children) {
+    const icon = child.querySelector("img.icon_skill_effect");
+    const prop = icon.src.match(/icon_(\w+)\.png/)[1];
+    if (prop === "target") {
+      result.push({});
+    }
+    result[result.length - 1][prop] = innerText(child);
+  }
+  return result;
+}
+
+function extractDetailSkill(el) {
+  const result = {
+    element: "none",
+    skill: []
+  };
+  for (const dt of el.querySelectorAll("dt")) {
+    const key = dt.textContent;
+    let match;
+    if (key === "屬性") {
+      const attributeImg = dt.nextElementSibling.querySelector("img")
+      const n = attributeImg ? Number(attributeImg.src.match(/attribute_(\d+)/)[1]) : 0;
+      result.element = n ? ELEMENTS[n - 1] : "none";
+    } else if (key === "名稱") {
+      result.skill.push({
+        name: innerText(dt.nextElementSibling),
+      })
+    } else if (key === "效果") {
+      result.skill[result.skill.length - 1].effect = extractSkillEffect(dt.nextElementSibling);
+    } else if ((match = key.match(/技能等級(\d+)/))) {
+      result.skill[result.skill.length - 1][`lv${match[1]}`] = extractSkillEffect(dt.nextElementSibling);
+    } else if (key === "技能等級") {
+      result.skill[result.skill.length - 1].level = Number(dt.nextElementSibling.textContent);
+    } else if (key === "必要素材") {
+      result.skill[result.skill.length - 1].materials = innerText(dt.nextElementSibling);
+    } else {
+      throw new Error(`Unknown skill dt: ${key}`);
+    }
+  }
+  return result;
+}
+
+function zip(a, b) {
+  return Object.fromEntries(a.map((key, i) => [key, b[i]]));
 }
