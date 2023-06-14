@@ -43,7 +43,7 @@ function start() {
   for (const char of allCharacters) {
     // console.log(char.name);
     const effect = matchCharacter(char, filter);
-    if (effect.length) {
+    if (filter.searchSkill && effect.length || !filter.searchSkill && effect) {
       result.push({
         char, effect
       });
@@ -73,7 +73,7 @@ function matchCharacter(char, filter) {
   if (soulBurst) {
     result.push(...searchEffect(soulBurst.effect, filter.searchSkill, soulBurst.name));
   }
-  const passives = char.passive || []; // some chars have no passive
+  const passives = char.passives || []; // some chars have no passive
   for (const p of passives) {
     // FIXME: this won't work when lv6 is introduced.
     for (let i = 5; i >= 1; i--) {
@@ -159,11 +159,11 @@ function searchEffect(list, search, skillName) {
 </form>
 
 {#if searchResult && searchResult.length}
-  <div class="search-result">
+  <div class="search-result" class:disable-skill={!searchResult[0].effect.length}>
     {#each searchResult as r}
       <div class="char" style="grid-row-end: span {r.effect.length}">
         <a href={r.char.url} target="_blank" title={r.char.name}>
-          <img src={r.char.icons[r.char.icons.length - 1]} alt={r.char.name}>
+          <img src={r.char.icons[r.char.icons.length - 1]} alt={r.char.name} loading="lazy">
         </a>
       </div>
       {#each r.effect as e}
@@ -208,11 +208,27 @@ form {
 .search-result {
   display: grid;
   grid-template-columns: max-content 1fr;
-  align-items: center;
+  align-items: stretch;
   margin: .5em 0;
+  gap: 1px;
+  background: silver;
 }
-.search-result a {
+.search-result > * {
+  background: white;
+}
+.search-result.disable-skill {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  background: none;
+}
+.search-result a,
+img {
   display: block;
+}
+.char {
+  display: flex;
+  align-items: center;
 }
 .effect-target {
   margin: .5em;
