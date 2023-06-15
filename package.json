@@ -4,7 +4,7 @@
   "scripts": {
     "test": "eslint **/*.mjs **/*.svelte",
     "dev": "run-p start-dev build-dev",
-    "build": "shx rm -rf docs && rollup -c",
+    "build": "shx rm -rf docs/*.js docs/*.map && rollup -c",
     "build-dev": "rollup -cw",
     "build-db": "node tools/build-characters.mjs",
     "start": "sirv docs",

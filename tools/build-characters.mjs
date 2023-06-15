@@ -68,7 +68,8 @@ async function extractCharacterMenu(url) {
   const result = [];
 
   for (const link of document.querySelectorAll("a[href*=character_detail]")) {
-    result.push(await extractCharacter(link.href));
+    const char = await extractCharacter(link.href)
+    result.push(char);
     if (result.length >= PAGE_LIMIT) break;
   }
 
@@ -77,14 +78,21 @@ async function extractCharacterMenu(url) {
 
 async function extractCharacter(url) {
   console.log(url);
+  const id = url.match(/character_detail\/(\d+)/)[1];
   const r = await fetch(url);
   const html = await r.text();
   const {document} = new jsdom.JSDOM(html, {url}).window;
   const result = {};
 
+  result.id = id;
   result.url = (url);
   result.name = document.querySelector(".name__text").textContent;
-  result.icons = [...document.querySelectorAll("img.detail__img")].map(i => i.src);
+  result.icons = [...document.querySelectorAll("img.detail__img")].map(i => i.src)
+
+  const iconUrl = result.icons[result.icons.length - 1];
+  const r2 = await fetch(iconUrl);
+  const icon = await r2.buffer();
+  await fs.writeFile(`docs/img/${id}.png`, icon);
 
   for (const dt of document.querySelectorAll(".detail__data dt")) {
     const key = dt.textContent;

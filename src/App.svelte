@@ -164,7 +164,7 @@ function searchEffect(list, search, skillName) {
     {#each searchResult as r}
       <div class="char" style="grid-row-end: span {r.effect.length}">
         <a href={r.char.url} target="_blank" title={r.char.name}>
-          <img src={r.char.icons[r.char.icons.length - 1]} alt={r.char.name} loading="lazy">
+          <img src="img/{r.char.id}.png" alt={r.char.name} loading="lazy">
         </a>
       </div>
       {#each r.effect as e}
