@@ -29,11 +29,18 @@ const ELEMENTS = {
   dark: "暗",
 };
 
+const SKILL_TYPE = {
+  active: "主動",
+  burst: "爆發",
+  passive: "被動"
+};
+
 
 let filter = {
   distance: [],
   race: [],
   element: [],
+  skillType: [],
   searchSkill: "",
 };
 
@@ -67,30 +74,39 @@ function matchCharacter(char, filter) {
   const skill = char.awakenSkill || char.skill;
   const maxSkill = skill[skill.length - 1];
 
-  result.push(...searchEffect(maxSkill.effect, filter.searchSkill, maxSkill.name));
-  const limitBurst = char.awakenLimitBurst || char.limitBurst;
-  result.push(...searchEffect(limitBurst.effect, filter.searchSkill, limitBurst.name));
-  const soulBurst = char.soulBurst;
-  if (soulBurst) {
-    result.push(...searchEffect(soulBurst.effect, filter.searchSkill, soulBurst.name));
+  if (!filter.skillType.length || filter.skillType.includes("active")) {
+    result.push(...searchEffect(maxSkill.effect, filter.searchSkill, maxSkill.name));
   }
-  const passives = char.passives || []; // some chars have no passive
-  for (const p of passives) {
-    // FIXME: this won't work when lv6 is introduced.
-    for (let i = 5; i >= 1; i--) {
-      if (p[`lv${i}`]) {
-        result.push(...searchEffect(p[`lv${i}`], filter.searchSkill, p.name));
-        break;
-      }
+
+  if (!filter.skillType.length || filter.skillType.includes("burst")) {
+    const limitBurst = char.awakenLimitBurst || char.limitBurst;
+    result.push(...searchEffect(limitBurst.effect, filter.searchSkill, limitBurst.name));
+    const soulBurst = char.soulBurst;
+    if (soulBurst) {
+      result.push(...searchEffect(soulBurst.effect, filter.searchSkill, soulBurst.name));
     }
   }
-  const awakenPassives = char.awakenPassives || [];
-  const names = new Set();
-  for (let i = awakenPassives.length - 1; i >= 0; i--) {
-    if (names.has(awakenPassives[i].name)) continue;
-    names.add(awakenPassives[i].name);
-    result.push(...searchEffect(awakenPassives[i].effect, filter.searchSkill, awakenPassives[i].name));
+
+  if (!filter.skillType.length || filter.skillType.includes("passive")) {
+    const passives = char.passives || []; // some chars have no passive
+    for (const p of passives) {
+      // FIXME: this won't work when lv6 is introduced.
+      for (let i = 5; i >= 1; i--) {
+        if (p[`lv${i}`]) {
+          result.push(...searchEffect(p[`lv${i}`], filter.searchSkill, p.name));
+          break;
+        }
+      }
+    }
+    const awakenPassives = char.awakenPassives || [];
+    const names = new Set();
+    for (let i = awakenPassives.length - 1; i >= 0; i--) {
+      if (names.has(awakenPassives[i].name)) continue;
+      names.add(awakenPassives[i].name);
+      result.push(...searchEffect(awakenPassives[i].effect, filter.searchSkill, awakenPassives[i].name));
+    }
   }
+
   return result;
 }
 
@@ -146,6 +162,16 @@ function searchEffect(list, search, skillName) {
     {#each Object.entries(ELEMENTS) as [key, value]}
       <label>
         <input type="checkbox" bind:group={filter.element} value={key}>
+        {value}
+      </label>
+    {/each}
+  </div>
+
+  <span class="form-label">技能類型</span>
+  <div class="form-group">
+    {#each Object.entries(SKILL_TYPE) as [key, value]}
+      <label>
+        <input type="checkbox" bind:group={filter.skillType} value={key}>
         {value}
       </label>
     {/each}
