@@ -4,7 +4,8 @@ import YAML from "yaml";
 const allCharacters = YAML.parse(await fs.readFile("characters.yml", "utf8"));
 const searchMat = [
   // "退魔符文＜暗＞"
-  "高階繼承符文<木>"
+  // "高階繼承符文<木>"
+  "紋章"
 ];
 const searchName = [
   // "賽娜"
@@ -19,7 +20,7 @@ for (const c of allCharacters) {
       map.set(name.trim(), (map.get(name.trim()) ?? 0) + Number(count));
     }
   }
-  if (searchMat.length && searchMat.every(k => !map.has(k))) continue;
+  if (searchMat.length && [...map.keys()].every(k => searchMat.every(mat => !k.match(mat)))) continue;
   console.log(c.name);
   console.log(map);
 }
