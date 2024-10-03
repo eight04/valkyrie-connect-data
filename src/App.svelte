@@ -46,8 +46,25 @@ let filter = {
 
 let searchResult = null;
 
+function parseSearchSkill(text) {
+  const result = [];
+  const parts = text.split(/\s+/);
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith("!")) {
+      result.push({ and: true, not: true, text: part.slice(1)});
+    } else if (part.startsWith("|")) {
+      result.push({ or: true, text: part.slice(1)});
+    } else {
+      result.push({ and: true, text: part });
+    }
+  }
+  return result;
+}
+
 function start() {
   const result = [];
+  const searchTerms = parseSearchSkill(filter.searchSkill);
   for (const char of allCharacters) {
     // console.log(char.name);
     const effect = matchCharacter(char, filter);
