@@ -5,7 +5,7 @@ const allCharacters = YAML.parse(await fs.readFile("characters.yml", "utf8"));
 const searchMat = [
   // "退魔符文＜暗＞"
   // "高階繼承符文<木>"
-  "紋章"
+  // "紋章"
 ];
 const searchName = [
   // "賽娜"
