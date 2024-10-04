@@ -51,6 +51,9 @@ export default {
       patterns: [{
         test: /{type:\s*"module"}/,
         replace: "{}"
+      }, {
+        test: /BUNDLE_TIME/,
+        replace: String(Date.now())
       }]
     }),
 

@@ -4,6 +4,8 @@ import allCharacters from '../characters.yml';
 
 window.allCharacters = allCharacters;
 
+const bundleTime = new Date(BUNDLE_TIME);
+
 const DISTANCE = {
   melee: "近",
   magic: "中",
@@ -188,7 +190,10 @@ function matchCharacter(char, filter, searchTerms) {
   <title>Valkyrie Connect Data</title>
 </svelte:head>
 
-<h1>神域召喚角色查詢</h1>
+<header>
+  <h1> 神域召喚角色查詢 </h1>
+  <p class="header-supplement">更新日期: {bundleTime.toLocaleString()}</p>
+</header>
 
 <form on:submit|preventDefault={start}>
   <span class="form-label">距離</span>
@@ -263,7 +268,7 @@ function matchCharacter(char, filter, searchTerms) {
 {/if}
 
 <footer>
-  <a href="https://github.com/eight04/valkyrie-connect-data">eight04/valkyrie-connect-data</a>
+  <a href="https://github.com/eight04/valkyrie-connect-data">eight04/valkyrie-connect-data</a> 
 </footer>
 
 <style>
@@ -277,6 +282,16 @@ function matchCharacter(char, filter, searchTerms) {
   font-size: .95em;
   font-family: inherit;
   padding: .3em .6em;
+}
+header {
+  margin: 1.2em 0;
+}
+h1 {
+  margin: 0;
+}
+.header-supplement {
+  font-size: .8em;
+  margin: .3em 0;
 }
 form {
   display: grid;
