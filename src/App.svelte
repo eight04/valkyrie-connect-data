@@ -152,28 +152,29 @@ function matchCharacter(char, filter, searchTerms) {
 
   candidate = candidate.flat();
 
+  const setAll = (l, value) => {
+    for (const c of l) {
+      c.include = value;
+    }
+  };
+
   for (const term of searchTerms) {
     if (term.and) {
       if (candidate.every(c => !c.include)) continue;
       const matches = candidate.filter(c => c.effect.includes(term.text));
       if (!matches.length) {
-        for (const c of candidate) {
-          c.include = false;
-        }
+        setAll(candidate, false);
       } else {
-        for (const c of matches) {
-          c.include = true;
-        }
+        setAll(matches, true);
       }
     } else if (term.or) {
-      for (const c of candidate) {
-        c.include = c.include || c.effect.includes(term.text);
-      }
+      setAll(
+        candidate.filter(c => !c.include && c.effect.includes(term.text)),
+        true
+      );
     } else if (term.not) {
       if (candidate.some(c => c.effect.includes(term.text))) {
-        for (const c of candidate) {
-          c.include = false;
-        }
+        setAll(candidate, false);
       }
     }
   }
