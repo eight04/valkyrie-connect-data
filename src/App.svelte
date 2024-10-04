@@ -46,11 +46,34 @@ let filter = {
 
 let searchResult = null;
 
+function parseSearchSkill(text) {
+  const result = [];
+  const rx = /[|&]|\S+/g
+  let match;
+  // start with `or` to build the initial set
+  let operator = "or";
+  while ((match = rx.exec(text)) !== null) {
+    const part = match[0];
+    if (part === "|") {
+      operator = "or";
+      continue;
+    }
+    if (part === "&") {
+      operator = "and";
+      continue;
+    }
+    result.push({ [operator]: true, text: part })
+    operator = "and";
+  }
+  return result;
+}
+
 function start() {
   const result = [];
+  const searchTerms = parseSearchSkill(filter.searchSkill);
   for (const char of allCharacters) {
     // console.log(char.name);
-    const effect = matchCharacter(char, filter);
+    const effect = matchCharacter(char, filter, searchTerms);
     if (filter.searchSkill && effect.length || !filter.searchSkill && effect) {
       result.push({
         char, effect
@@ -60,7 +83,16 @@ function start() {
   searchResult = result;
 }
 
-function matchCharacter(char, filter) {
+function extractEffects(name, list) {
+  return list.map(e => ({
+    name,
+    target: e.target,
+    effect: e.effect,
+    include: false
+  }));
+}
+
+function matchCharacter(char, filter, searchTerms) {
   if (filter.distance.length && !filter.distance.includes(char.distance)) return false;
 
   if (filter.race.length && !filter.race.includes(char.race)) return false;
@@ -68,33 +100,44 @@ function matchCharacter(char, filter) {
   const element = char.element || char.awakenSkillElement || char.skillElement;
   if (filter.element.length && !filter.element.includes(element)) return false;
 
-  if (!filter.searchSkill) return [];
+  if (!searchTerms.length) return [];
 
-  const result = [];
-  const skill = char.awakenSkill || char.skill;
-  const maxSkill = skill[skill.length - 1];
+  let candidate = [];
 
   if (!filter.skillType.length || filter.skillType.includes("active")) {
-    result.push(...searchEffect(maxSkill.effect, filter.searchSkill, maxSkill.name));
+    const skill = char.awakenSkill || char.skill;
+    const maxSkill = skill[skill.length - 1];
+    if (!maxSkill?.effect) {
+      console.warn("no skill effect", char.name);
+    } else {
+      candidate.push(extractEffects(maxSkill.name, maxSkill.effect));
+    }
   }
 
   if (!filter.skillType.length || filter.skillType.includes("burst")) {
     const limitBurst = char.awakenLimitBurst || char.limitBurst;
-    result.push(...searchEffect(limitBurst.effect, filter.searchSkill, limitBurst.name));
+    if (limitBurst) {
+      candidate.push(extractEffects(limitBurst.name, limitBurst.effect));
+    } else {
+      console.warn("no limit burst", char.name);
+    }
     const soulBurst = char.soulBurst;
     if (soulBurst) {
-      result.push(...searchEffect(soulBurst.effect, filter.searchSkill, soulBurst.name));
+      candidate.push(extractEffects(soulBurst.name, soulBurst.effect));
     }
   }
 
   if (!filter.skillType.length || filter.skillType.includes("passive")) {
-    const passives = char.passives || []; // some chars have no passive
-    for (const p of passives) {
-      // FIXME: this won't work when lv6 is introduced.
-      for (let i = 5; i >= 1; i--) {
-        if (p[`lv${i}`]) {
-          result.push(...searchEffect(p[`lv${i}`], filter.searchSkill, p.name));
-          break;
+    if (!char.passives) {
+      console.warn("no passive", char.name);
+    } else {
+      for (const p of char.passives) {
+        // FIXME: this won't work when lv6 is introduced.
+        for (let i = 5; i >= 1; i--) {
+          if (p[`lv${i}`]) {
+            candidate.push(extractEffects(p.name, p[`lv${i}`]));
+            break;
+          }
         }
       }
     }
@@ -103,29 +146,40 @@ function matchCharacter(char, filter) {
     for (let i = awakenPassives.length - 1; i >= 0; i--) {
       if (names.has(awakenPassives[i].name)) continue;
       names.add(awakenPassives[i].name);
-      result.push(...searchEffect(awakenPassives[i].effect, filter.searchSkill, awakenPassives[i].name));
+      candidate.push(extractEffects(awakenPassives[i].name, awakenPassives[i].effect));
     }
   }
 
-  return result;
-}
+  candidate = candidate.flat();
 
-function searchEffect(list, search, skillName) {
-  if (!list) {
-    console.warn("no effect", skillName);
-    return [];
-  }
-  const result = [];
-  for (const e of list) {
-    if (e.effect.includes(search)) {
-      result.push({
-        name: skillName,
-        effect: e.effect,
-        target: e.target
-      });
+  const setAll = (l, value) => {
+    for (const c of l) {
+      c.include = value;
+    }
+  };
+
+  for (const term of searchTerms) {
+    if (term.and) {
+      if (candidate.every(c => !c.include)) continue;
+      const matches = candidate.filter(c => c.effect.includes(term.text));
+      if (!matches.length) {
+        setAll(candidate, false);
+      } else {
+        setAll(matches, true);
+      }
+    } else if (term.or) {
+      setAll(
+        candidate.filter(c => !c.include && c.effect.includes(term.text)),
+        true
+      );
+    } else if (term.not) {
+      if (candidate.some(c => c.effect.includes(term.text))) {
+        setAll(candidate, false);
+      }
     }
   }
-  return result;
+
+  return candidate.filter(c => c.include);
 }
 
 </script>
@@ -179,6 +233,7 @@ function searchEffect(list, search, skillName) {
 
   <label class="form-label" for="searchSkill">技能效果</label>
   <input type="text" bind:value={filter.searchSkill} id="searchSkill">
+  <p class="form-help">尋找單詞。使用 | 來表示或，& 來表示且。例如：「對巨人 & 對地面」</p>
 
   <div class="actions">
     <button type="submit">搜尋</button>
@@ -228,6 +283,11 @@ form {
   grid-template-columns: max-content 1fr;
   grid-gap: .5em;
   align-items: center;
+}
+.form-help {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: .8em;
 }
 .actions {
   grid-column: 1 / -1;
