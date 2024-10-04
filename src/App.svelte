@@ -48,17 +48,22 @@ let searchResult = null;
 
 function parseSearchSkill(text) {
   const result = [];
-  const parts = text.split(/\s+/);
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    if (!part) continue;
-    if (part.startsWith("!")) {
-      result.push({ not: true, text: part.slice(1)});
-    } else if (part.startsWith("|")) {
-      result.push({ or: true, text: part.slice(1)});
-    } else {
-      result.push({ and: true, text: part });
+  const rx = /[|&]|\S+/g
+  let match;
+  // start with `or` to build the initial set
+  let operator = "or";
+  while ((match = rx.exec(text)) !== null) {
+    const part = match[0];
+    if (part === "|") {
+      operator = "or";
+      continue;
     }
+    if (part === "&") {
+      operator = "and";
+      continue;
+    }
+    result.push({ [operator]: true, text: part })
+    operator = "and";
   }
   return result;
 }
@@ -93,11 +98,15 @@ function matchCharacter(char, filter, searchTerms) {
   if (!filter.skillType.length || filter.skillType.includes("active")) {
     const skill = char.awakenSkill || char.skill;
     const maxSkill = skill[skill.length - 1];
+    if (!maxSkill?.effect) {
+      console.warn("no skill effect", char.name);
+      return [];
+    }
     candidate.push(...maxSkill.effect.map(e => ({
       name: maxSkill.name,
       target: e.target,
       effect: e.effect,
-      include: true
+      include: false
     })));
   }
 
@@ -108,7 +117,7 @@ function matchCharacter(char, filter, searchTerms) {
         name: limitBurst.name,
         target: e.target,
         effect: e.effect,
-        include: true
+        include: false
       })));
     } else {
       console.warn("no limit burst", char.name);
@@ -119,24 +128,27 @@ function matchCharacter(char, filter, searchTerms) {
         name: soulBurst.name,
         target: e.target,
         effect: e.effect,
-        include: true
+        include: false
       })));
     }
   }
 
   if (!filter.skillType.length || filter.skillType.includes("passive")) {
-    const passives = char.passives || []; // some chars have no passive
-    for (const p of passives) {
-      // FIXME: this won't work when lv6 is introduced.
-      for (let i = 5; i >= 1; i--) {
-        if (p[`lv${i}`]) {
-          candidate.push(...p[`lv${i}`].map(e => ({
-            name: p.name,
-            target: e.target,
-            effect: e.effect,
-            include: true
-          })));
-          break;
+    if (!char.passives) {
+      console.warn("no passive", char.name);
+    } else {
+      for (const p of char.passives) {
+        // FIXME: this won't work when lv6 is introduced.
+        for (let i = 5; i >= 1; i--) {
+          if (p[`lv${i}`]) {
+            candidate.push(...p[`lv${i}`].map(e => ({
+              name: p.name,
+              target: e.target,
+              effect: e.effect,
+              include: false
+            })));
+            break;
+          }
         }
       }
     }
@@ -149,15 +161,23 @@ function matchCharacter(char, filter, searchTerms) {
         name: awakenPassives[i].name,
         target: e.target,
         effect: e.effect,
-        include: true
+        include: false
       })));
     }
   }
 
   for (const term of searchTerms) {
     if (term.and) {
-      for (const c of candidate) {
-        c.include = c.include && c.effect.includes(term.text);
+      if (candidate.every(c => !c.include)) continue;
+      const matches = candidate.filter(c => c.effect.includes(term.text));
+      if (!matches.length) {
+        for (const c of candidate) {
+          c.include = false;
+        }
+      } else {
+        for (const c of matches) {
+          c.include = true;
+        }
       }
     } else if (term.or) {
       for (const c of candidate) {
@@ -226,6 +246,7 @@ function matchCharacter(char, filter, searchTerms) {
 
   <label class="form-label" for="searchSkill">技能效果</label>
   <input type="text" bind:value={filter.searchSkill} id="searchSkill">
+  <p class="form-help">尋找單詞。使用 | 來表示或，& 來表示且。例如：「對巨人 & 對地面」</p>
 
   <div class="actions">
     <button type="submit">搜尋</button>
@@ -275,6 +296,11 @@ form {
   grid-template-columns: max-content 1fr;
   grid-gap: .5em;
   align-items: center;
+}
+.form-help {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: .8em;
 }
 .actions {
   grid-column: 1 / -1;
