@@ -100,14 +100,14 @@ function matchCharacter(char, filter, searchTerms) {
     const maxSkill = skill[skill.length - 1];
     if (!maxSkill?.effect) {
       console.warn("no skill effect", char.name);
-      return [];
+    } else {
+      candidate.push(...maxSkill.effect.map(e => ({
+        name: maxSkill.name,
+        target: e.target,
+        effect: e.effect,
+        include: false
+      })));
     }
-    candidate.push(...maxSkill.effect.map(e => ({
-      name: maxSkill.name,
-      target: e.target,
-      effect: e.effect,
-      include: false
-    })));
   }
 
   if (!filter.skillType.length || filter.skillType.includes("burst")) {
