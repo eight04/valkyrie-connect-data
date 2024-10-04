@@ -83,6 +83,15 @@ function start() {
   searchResult = result;
 }
 
+function extractEffects(name, list) {
+  return list.map(e => ({
+    name,
+    target: e.target,
+    effect: e.effect,
+    include: false
+  }));
+}
+
 function matchCharacter(char, filter, searchTerms) {
   if (filter.distance.length && !filter.distance.includes(char.distance)) return false;
 
@@ -93,7 +102,7 @@ function matchCharacter(char, filter, searchTerms) {
 
   if (!searchTerms.length) return [];
 
-  const candidate = [];
+  let candidate = [];
 
   if (!filter.skillType.length || filter.skillType.includes("active")) {
     const skill = char.awakenSkill || char.skill;
@@ -101,35 +110,20 @@ function matchCharacter(char, filter, searchTerms) {
     if (!maxSkill?.effect) {
       console.warn("no skill effect", char.name);
     } else {
-      candidate.push(...maxSkill.effect.map(e => ({
-        name: maxSkill.name,
-        target: e.target,
-        effect: e.effect,
-        include: false
-      })));
+      candidate.push(extractEffects(maxSkill.name, maxSkill.effect));
     }
   }
 
   if (!filter.skillType.length || filter.skillType.includes("burst")) {
     const limitBurst = char.awakenLimitBurst || char.limitBurst;
     if (limitBurst) {
-      candidate.push(...limitBurst.effect.map(e => ({
-        name: limitBurst.name,
-        target: e.target,
-        effect: e.effect,
-        include: false
-      })));
+      candidate.push(extractEffects(limitBurst.name, limitBurst.effect));
     } else {
       console.warn("no limit burst", char.name);
     }
     const soulBurst = char.soulBurst;
     if (soulBurst) {
-      candidate.push(...soulBurst.effect.map(e => ({
-        name: soulBurst.name,
-        target: e.target,
-        effect: e.effect,
-        include: false
-      })));
+      candidate.push(extractEffects(soulBurst.name, soulBurst.effect));
     }
   }
 
@@ -141,12 +135,7 @@ function matchCharacter(char, filter, searchTerms) {
         // FIXME: this won't work when lv6 is introduced.
         for (let i = 5; i >= 1; i--) {
           if (p[`lv${i}`]) {
-            candidate.push(...p[`lv${i}`].map(e => ({
-              name: p.name,
-              target: e.target,
-              effect: e.effect,
-              include: false
-            })));
+            candidate.push(extractEffects(p.name, p[`lv${i}`]));
             break;
           }
         }
@@ -157,14 +146,11 @@ function matchCharacter(char, filter, searchTerms) {
     for (let i = awakenPassives.length - 1; i >= 0; i--) {
       if (names.has(awakenPassives[i].name)) continue;
       names.add(awakenPassives[i].name);
-      candidate.push(...awakenPassives[i].effect.map(e => ({
-        name: awakenPassives[i].name,
-        target: e.target,
-        effect: e.effect,
-        include: false
-      })));
+      candidate.push(extractEffects(awakenPassives[i].name, awakenPassives[i].effect));
     }
   }
+
+  candidate = candidate.flat();
 
   for (const term of searchTerms) {
     if (term.and) {
